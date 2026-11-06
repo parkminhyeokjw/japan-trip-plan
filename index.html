@@ -107,6 +107,7 @@ textarea{min-height:84px;resize:vertical}
 
   <section id="packView" hidden>
     <h2 style="font-size:19px;margin:12px 0 2px">준비물</h2>
+    <p style="margin:0 0 8px;font-size:13px;color:var(--muted)">목록은 친구와 같이 쓰고, 체크는 내 폰에만 저장돼요.</p>
     <form class="addrow" id="packForm"><input id="packIn" placeholder="가져갈 것 (예: 여권, 충전기)" maxlength="100" autocomplete="off" aria-label="준비물 추가"><button type="submit">추가</button></form>
     <div id="packList"></div>
   </section>
@@ -138,7 +139,7 @@ textarea{min-height:84px;resize:vertical}
   /* ---------- 설정 ---------- */
   var TOPIC="jtp-yebPBOKGAHATDdcrpnLziHrR";           // 두 폰이 같은 방을 쓰기 위한 이름
   var BASE="https://ntfy.sh/"+TOPIC;
-  var K_R="jtp2-records", K_D="jtp2-dirty", K_N="jtp2-name", K_TAB="jtp2-tab", K_VIEW="jtp2-view";
+  var K_CK="jtp2-checks", K_R="jtp2-records", K_D="jtp2-dirty", K_N="jtp2-name", K_TAB="jtp2-tab", K_VIEW="jtp2-view";
   var DOW=["일","월","화","수","목","금","토"];
   var START="2026-11-09", DAYS=5;                    // 11/9 ~ 11/13 고정
 
@@ -209,7 +210,8 @@ textarea{min-height:84px;resize:vertical}
   }
 
   /* ---------- 화면 ---------- */
-  var cur=0, view="plan", editing=null, myName="";
+  var cur=0, view="plan", editing=null;
+  var CK={}; try{CK=JSON.parse(lsGet(K_CK)||"{}")||{}}catch(e){CK={}}   // 준비물 체크: 이 폰에만 저장
   function dateOf(i){var p=START.split("-"); return new Date(+p[0],+p[1]-1,+p[2]+i)}
   function todayIdx(){
     var p=START.split("-"), s=Date.UTC(+p[0],+p[1]-1,+p[2]), n=new Date(), t=Date.UTC(n.getFullYear(),n.getMonth(),n.getDate());
@@ -284,15 +286,15 @@ textarea{min-height:84px;resize:vertical}
 
   function renderPack(){
     var list=$("packList"); list.innerHTML="";
-    var all=packs(), todo=all.filter(function(p){return !p.v.done}), done=all.filter(function(p){return p.v.done});
+    var all=packs(), todo=all.filter(function(p){return !CK[p.key]}), done=all.filter(function(p){return CK[p.key]});
     function sec(label,arr){
       if(!arr.length) return;
       var h=document.createElement("div"); h.className="sec"; h.textContent=label+" "+arr.length; list.appendChild(h);
       arr.forEach(function(p){
-        var r=document.createElement("div"); r.className="pk"+(p.v.done?" done":"");
-        var bx=document.createElement("button"); bx.type="button"; bx.className="box"; bx.textContent=p.v.done?"✓":""; bx.setAttribute("aria-label","챙김 표시");
+        var r=document.createElement("div"); r.className="pk"+(CK[p.key]?" done":"");
+        var bx=document.createElement("button"); bx.type="button"; bx.className="box"; bx.textContent=CK[p.key]?"✓":""; bx.setAttribute("aria-label","챙김 표시");
         var tx=document.createElement("button"); tx.type="button"; tx.className="tx"; tx.textContent=p.v.text;
-        var tog=function(){setRec(p.key,Object.assign({},p.v,{done:!p.v.done,doneBy:!p.v.done?myName:""}))};
+        var tog=function(){ if(CK[p.key]) delete CK[p.key]; else CK[p.key]=1; lsSet(K_CK,JSON.stringify(CK)); render() };
         bx.onclick=tog; tx.onclick=tog;
         var x=document.createElement("button"); x.type="button"; x.className="x"; x.textContent="×"; x.setAttribute("aria-label","삭제");
         x.onclick=function(){ if(x.dataset.sure!=="1"){x.dataset.sure="1";x.textContent="삭제?";x.style.color="var(--danger)";x.style.fontSize="15px";return} setRec(p.key,null)};
@@ -345,7 +347,7 @@ textarea{min-height:84px;resize:vertical}
   $("tPlan").onclick=function(){setView("plan")}; $("tPack").onclick=function(){setView("pack")};
   $("packForm").onsubmit=function(e){
     e.preventDefault(); var inp=$("packIn"), t=inp.value.trim(); if(!t) return;
-    setRec("p:"+uid(),{text:t,done:false,by:myName,doneBy:""}); inp.value=""; inp.focus();
+    setRec("p:"+uid(),{text:t,done:false,by:"",doneBy:""}); inp.value=""; inp.focus();
   };
   $("copyUrl").onclick=function(){
     var url=location.origin+location.pathname, b=$("copyUrl");

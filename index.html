@@ -81,6 +81,21 @@ textarea{min-height:84px;resize:vertical}
 .btns .mv{flex:0 0 auto;padding:10px 16px}
 .hint{font-size:13px;color:var(--muted);margin:14px 0 0}
 .incoming{margin:12px 0 0;background:var(--soft);border-radius:10px;padding:12px;font-size:16px}
+.placerow{display:flex;gap:8px}
+label.f .placerow input{width:auto;flex:1}
+.locbtn{flex:0 0 auto;border:1px solid var(--accent);background:var(--soft);color:var(--accent);border-radius:8px;font:700 15px var(--f-body);padding:0 14px;cursor:pointer}
+.loct{font-size:13px;color:var(--muted);margin-top:-6px}
+dialog#mapDlg{height:88%;max-height:88%;padding:14px max(14px,env(safe-area-inset-left,0px)) calc(14px + env(safe-area-inset-bottom,0px))}
+.mapwrap{display:flex;flex-direction:column;gap:10px;height:100%;min-height:0}
+.mapsearch{display:flex;gap:8px}
+.mapsearch input{flex:1;min-width:0;font:16px var(--f-body);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.mapsearch button{flex:0 0 auto;border:0;border-radius:10px;background:var(--accent);color:var(--accent-fg);font:700 16px var(--f-body);padding:0 16px;cursor:pointer}
+#mRes{display:grid;gap:6px;max-height:150px;overflow-y:auto}
+#mRes button{text-align:left;font:15px var(--f-body);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 12px;cursor:pointer;word-break:keep-all;overflow-wrap:anywhere}
+#mapBox{flex:1;min-height:240px;border-radius:12px;border:1px solid var(--line);overflow:hidden;background:var(--soft)}
+.mapmsg{font-size:13px;color:var(--muted)}
+.pin{display:block;width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#d93025;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.45)}
+.leaflet-container{font-family:var(--f-body)}
 /* packing */
 .addrow{display:flex;gap:8px;margin:6px 0 14px}
 .addrow input{flex:1;min-width:0;font:16px var(--f-body);color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
@@ -123,7 +138,8 @@ textarea{min-height:84px;resize:vertical}
       <label class="f">날짜<select id="fDay"></select></label>
       <label class="f">시간<input id="fTime" type="time"></label>
     </div>
-    <label class="f">장소<input id="fPlace" placeholder="예: 센소지, 시부야 스카이" autocomplete="off"></label>
+    <label class="f">장소<span class="placerow"><input id="fPlace" placeholder="예: 센소지, 시부야 스카이" autocomplete="off"><button type="button" class="locbtn" id="fLoc">위치</button></span></label>
+    <div class="loct" id="fLocT"></div>
     <label class="f">메모<textarea id="fNote" placeholder="뭐 할지, 뭐 먹을지, 교통편 등"></textarea></label>
     <div class="btns" id="mvRow"><button type="button" class="mv" id="fUp">▲ 위로</button><button type="button" class="mv" id="fDown">▼ 아래로</button></div>
     <div class="btns">
@@ -132,6 +148,20 @@ textarea{min-height:84px;resize:vertical}
       <button type="submit" class="pri">저장</button>
     </div>
   </form>
+</dialog>
+
+<dialog id="mapDlg" aria-label="위치 지정">
+  <div class="mapwrap">
+    <div class="mapsearch"><input id="mQ" placeholder="장소 검색 (예: 센소지, 시부야역)" autocomplete="off"><button type="button" id="mGo">검색</button></div>
+    <div id="mRes"></div>
+    <div id="mapBox"></div>
+    <div class="mapmsg" id="mMsg"></div>
+    <div class="btns">
+      <button type="button" class="del" id="mClear">위치 지우기</button>
+      <button type="button" id="mCancel">취소</button>
+      <button type="button" class="pri" id="mOk">이 위치로</button>
+    </div>
+  </div>
 </dialog>
 
 <script>
@@ -182,7 +212,8 @@ textarea{min-height:84px;resize:vertical}
     }
     if(key.indexOf("i:")===0){
       var day=parseInt(v.day,10); if(!(day>=0&&day<DAYS)) return undefined;
-      return {day:day,time:/^\d\d:\d\d$/.test(v.time)?v.time:"",place:str(v.place,200),note:str(v.note,2000),done:v.done===true,ord:typeof v.ord==="number"?v.ord:0};
+      var ok=typeof v.lat==="number"&&typeof v.lng==="number"&&isFinite(v.lat)&&isFinite(v.lng)&&Math.abs(v.lat)<=90&&Math.abs(v.lng)<=180;
+      return {day:day,time:/^\d\d:\d\d$/.test(v.time)?v.time:"",place:str(v.place,200),note:str(v.note,2000),done:v.done===true,ord:typeof v.ord==="number"?v.ord:0,lat:ok?v.lat:null,lng:ok?v.lng:null};
     }
     if(key.indexOf("p:")===0) return {text:str(v.text,100),done:v.done===true,by:str(v.by,12),doneBy:str(v.doneBy,12)};
     return undefined;
@@ -218,6 +249,8 @@ textarea{min-height:84px;resize:vertical}
     var i=Math.round((t-s)/86400000); return (i>=0&&i<DAYS)?i:-1;
   }
   function mapUrl(q){return "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(q)}
+  function hasLoc(v){return typeof v.lat==="number"&&typeof v.lng==="number"}
+  function locStr(v){return hasLoc(v)?(v.lat+","+v.lng):v.place}
   function dirUrl(a,b){return "https://www.google.com/maps/dir/?api=1&travelmode=transit&origin="+encodeURIComponent(a)+"&destination="+encodeURIComponent(b)}
 
   var rafPending=false;
@@ -259,7 +292,7 @@ textarea{min-height:84px;resize:vertical}
     }
     var n=new Date(), nowS=pad(n.getHours())+":"+pad(n.getMinutes()), nowKey=null;
     if(cur===td){ items.forEach(function(it){ if(it.v.time&&it.v.time<=nowS) nowKey=it.key }) }
-    var ol=document.createElement("ol"), prevPlace="";
+    var ol=document.createElement("ol"), prevRef="";
     items.forEach(function(it){
       var v=it.v, li=document.createElement("li"); li.className="slot";
       var t=document.createElement("div"); t.className="time"+(v.time?"":" none"); t.textContent=v.time||"미정";
@@ -270,13 +303,13 @@ textarea{min-height:84px;resize:vertical}
       ck.onclick=function(ev){ev.stopPropagation(); var nv=Object.assign({},v,{done:!v.done}); setRec(it.key,nv)};
       c.appendChild(p); c.appendChild(ck);
       if(v.note){var nt=document.createElement("div"); nt.className="note"; nt.textContent=v.note; c.appendChild(nt)}
-      if(v.place){
+      if(v.place||hasLoc(v)){
         var ls=document.createElement("div"); ls.className="links";
-        var a=document.createElement("a"); a.href=mapUrl(v.place); a.target="_blank"; a.rel="noopener"; a.textContent="지도 ↗"; a.onclick=function(ev){ev.stopPropagation()}; ls.appendChild(a);
-        if(prevPlace){var a2=document.createElement("a"); a2.href=dirUrl(prevPlace,v.place); a2.target="_blank"; a2.rel="noopener"; a2.textContent="이전 장소에서 길찾기 ↗"; a2.onclick=function(ev){ev.stopPropagation()}; ls.appendChild(a2)}
+        var a=document.createElement("a"); a.href=mapUrl(locStr(v)); a.target="_blank"; a.rel="noopener"; a.textContent="지도 ↗"; a.onclick=function(ev){ev.stopPropagation()}; ls.appendChild(a);
+        if(prevRef){var a2=document.createElement("a"); a2.href=dirUrl(prevRef,locStr(v)); a2.target="_blank"; a2.rel="noopener"; a2.textContent="이전 장소에서 길찾기 ↗"; a2.onclick=function(ev){ev.stopPropagation()}; ls.appendChild(a2)}
         c.appendChild(ls);
       }
-      if(v.place) prevPlace=v.place;
+      if(v.place||hasLoc(v)) prevRef=locStr(v);
       c.onclick=function(){openEdit(it)};
       c.onkeydown=function(ev){if(ev.key==="Enter"&&ev.target===c)openEdit(it)};
       li.appendChild(t); li.appendChild(c); ol.appendChild(li);
@@ -306,12 +339,17 @@ textarea{min-height:84px;resize:vertical}
   }
 
   /* ---------- 일정 편집창 ---------- */
-  var dlg=$("dlg");
+  var dlg=$("dlg"), pin=null;
+  function showLoc(){
+    $("fLocT").textContent=pin?"위치 지정됨 ("+pin.lat.toFixed(4)+", "+pin.lng.toFixed(4)+"). 카드의 '지도'를 누르면 이 위치가 열려요.":"위치를 지정하면 카드의 '지도'가 그 자리를 정확히 열어요.";
+    $("fLoc").textContent=pin?"위치 ✓":"위치";
+  }
   function openEdit(it){
     editing=it||null; var sel=$("fDay"); sel.innerHTML="";
     for(var i=0;i<DAYS;i++){var o=document.createElement("option"); o.value=i; var d=dateOf(i); o.textContent=(i+1)+"일차 ("+(d.getMonth()+1)+"/"+d.getDate()+")"; sel.appendChild(o)}
     sel.value=it?it.v.day:cur;
     $("fTime").value=it?it.v.time:""; $("fPlace").value=it?it.v.place:""; $("fNote").value=it?it.v.note:"";
+    pin=(it&&hasLoc(it.v))?{lat:it.v.lat,lng:it.v.lng}:null; showLoc();
     $("fDel").style.display=it?"":"none"; $("mvRow").style.display=it?"":"none";
     dlg.showModal(); if(!it) $("fTime").focus();
   }
@@ -334,11 +372,81 @@ textarea{min-height:84px;resize:vertical}
   $("f").onsubmit=function(e){
     e.preventDefault();
     var time=$("fTime").value, place=$("fPlace").value.trim(), note=$("fNote").value.trim(), day=parseInt($("fDay").value,10)||0;
-    if(!place&&!note&&!time){dlg.close();return}
-    if(editing){ setRec(editing.key,Object.assign({},editing.v,{day:day,time:time,place:place,note:note})); cur=day }
-    else { setRec("i:"+uid(),{day:day,time:time,place:place,note:note,done:false,ord:Date.now()}); cur=day }
+    if(!place&&!note&&!time&&!pin){dlg.close();return}
+    if(editing){ setRec(editing.key,Object.assign({},editing.v,{day:day,time:time,place:place,note:note,lat:pin?pin.lat:null,lng:pin?pin.lng:null})); cur=day }
+    else { setRec("i:"+uid(),{day:day,time:time,place:place,note:note,done:false,ord:Date.now(),lat:pin?pin.lat:null,lng:pin?pin.lng:null}); cur=day }
     dlg.close();
   };
+
+
+  /* ---------- 지도에서 위치 찍기 (Leaflet + OpenStreetMap) ---------- */
+  var mapDlg=$("mapDlg"), map=null, marker=null, tmp=null, leafletP=null;
+  function mmsg(t){$("mMsg").textContent=t}
+  function loadLeaflet(){
+    if(window.L) return Promise.resolve();
+    if(leafletP) return leafletP;
+    leafletP=new Promise(function(res,rej){
+      var l=document.createElement("link"); l.rel="stylesheet"; l.href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"; document.head.appendChild(l);
+      var sc=document.createElement("script"); sc.src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"; sc.onload=res; sc.onerror=function(){leafletP=null; rej(new Error("load"))};
+      document.head.appendChild(sc);
+    });
+    return leafletP;
+  }
+  function rnd(n){return Math.round(n*1e6)/1e6}
+  function setPin(lat,lng){
+    tmp={lat:rnd(lat),lng:rnd(lng)};
+    if(!marker){
+      marker=L.marker([lat,lng],{draggable:true,icon:L.divIcon({className:"",html:'<span class="pin"></span>',iconSize:[26,26],iconAnchor:[13,30]})}).addTo(map);
+      marker.on("dragend",function(){var p=marker.getLatLng(); tmp={lat:rnd(p.lat),lng:rnd(p.lng)}});
+    } else marker.setLatLng([lat,lng]);
+  }
+  function showResults(list){
+    var box=$("mRes"); box.innerHTML="";
+    if(!list.length){mmsg("검색 결과가 없어요. 지도를 직접 눌러 위치를 찍어 보세요."); return}
+    mmsg("결과를 누르면 그 위치로 이동해요.");
+    list.forEach(function(r){
+      var b=document.createElement("button"); b.type="button"; b.textContent=r.name;
+      b.onclick=function(){ setPin(r.lat,r.lng); map.setView([r.lat,r.lng],17); box.innerHTML=""; mmsg("핀을 끌어 미세하게 옮길 수 있어요. 맞으면 '이 위치로'를 누르세요.") };
+      box.appendChild(b);
+    });
+  }
+  function short(n){return String(n).split(",").slice(0,3).join(",").trim()}
+  function doSearch(q){
+    q=q.trim(); if(!q) return; mmsg("검색 중…"); $("mRes").innerHTML="";
+    fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&accept-language=ko&countrycodes=jp&q="+encodeURIComponent(q))
+      .then(function(r){if(!r.ok) throw new Error("n"); return r.json()})
+      .then(function(a){ if(!a.length) throw new Error("empty"); return a.map(function(x){return {name:short(x.display_name),lat:+x.lat,lng:+x.lon}}) })
+      .catch(function(){
+        return fetch("https://photon.komoot.io/api/?limit=5&bbox=122,24,146,46&q="+encodeURIComponent(q))
+          .then(function(r){if(!r.ok) throw new Error("p"); return r.json()})
+          .then(function(j){return (j.features||[]).map(function(f){var p=f.properties||{}; return {name:short([p.name,p.city||p.state,p.country].filter(Boolean).join(", ")),lat:f.geometry.coordinates[1],lng:f.geometry.coordinates[0]}})});
+      })
+      .then(showResults)
+      .catch(function(){mmsg("검색이 안 돼요(인터넷 확인). 지도를 직접 눌러 위치를 찍을 수 있어요.")});
+  }
+  $("fLoc").onclick=function(){
+    mapDlg.showModal(); mmsg("지도 불러오는 중…"); $("mRes").innerHTML="";
+    $("mQ").value=$("fPlace").value.trim();
+    loadLeaflet().then(function(){
+      if(!map){
+        map=L.map("mapBox").setView([35.68,139.76],11);
+        L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);
+        map.on("click",function(e){setPin(e.latlng.lat,e.latlng.lng); mmsg("핀을 끌어 미세하게 옮길 수 있어요. 맞으면 '이 위치로'를 누르세요.")});
+      }
+      setTimeout(function(){
+        map.invalidateSize();
+        if(marker){marker.remove(); marker=null}
+        tmp=pin?{lat:pin.lat,lng:pin.lng}:null;
+        if(pin){ setPin(pin.lat,pin.lng); map.setView([pin.lat,pin.lng],16); mmsg("핀을 끌거나 지도를 눌러 옮길 수 있어요.") }
+        else { mmsg("지도를 눌러 위치를 찍으세요. 위 검색창으로 찾을 수도 있어요."); if($("mQ").value) doSearch($("mQ").value) }
+      },60);
+    }).catch(function(){mmsg("지도를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.")});
+  };
+  $("mGo").onclick=function(){doSearch($("mQ").value)};
+  $("mQ").onkeydown=function(e){if(e.key==="Enter"){e.preventDefault(); doSearch($("mQ").value)}};
+  $("mCancel").onclick=function(){mapDlg.close()};
+  $("mClear").onclick=function(){pin=null; showLoc(); mapDlg.close()};
+  $("mOk").onclick=function(){ if(!tmp){mmsg("먼저 지도에서 위치를 찍어 주세요."); return} pin={lat:tmp.lat,lng:tmp.lng}; showLoc(); mapDlg.close() };
 
   /* ---------- 헤더 입력 / 탭 ---------- */
   var titleT=null;

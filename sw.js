@@ -1,5 +1,5 @@
 // 오프라인에서도 열리게 페이지와 글꼴을 저장해 두는 서비스 워커
-var C = "jtp-v2";
+var C = "jtp-v3";
 self.addEventListener("install", function (e) {
   self.skipWaiting();
   e.waitUntil(caches.open(C).then(function (c) { return c.addAll(["./", "./index.html"]); }));
@@ -16,7 +16,7 @@ self.addEventListener("fetch", function (e) {
   if (r.method !== "GET") return;
   var u = new URL(r.url);
   var same = u.origin === location.origin;
-  var font = /(^|\.)fonts\.(googleapis|gstatic)\.com$/.test(u.hostname);
+  var font = /(^|\.)(fonts\.googleapis\.com|fonts\.gstatic\.com|unpkg\.com|tile\.openstreetmap\.org)$/.test(u.hostname);
   if (!same && !font) return;
   e.respondWith(
     fetch(r).then(function (res) {

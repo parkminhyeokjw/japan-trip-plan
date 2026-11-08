@@ -46,6 +46,9 @@ header{padding-top:14px}
 ol{list-style:none;margin:0;padding:0}
 li.slot{display:grid;grid-template-columns:54px 1fr;gap:0 10px;position:relative}
 li.slot::before{content:"";position:absolute;left:62px;top:0;bottom:0;width:2px;background:var(--line)}
+li.slot.inspan::before{background:var(--accent);opacity:.5;width:4px;left:61px}
+li.slot.sub .card{margin-left:34px;width:calc(100% - 34px)}
+li.slot.sub .card::before{left:-41px;width:8px;height:8px;top:16px}
 .time{font:700 17px/1.2 var(--f-num);font-variant-numeric:tabular-nums;text-align:right;padding-top:12px;color:var(--accent)}
 .time .end{display:block;font:500 12.5px/1.2 var(--f-num);color:var(--muted);margin-top:3px}
 .time.none{color:var(--muted);font-weight:500;font-size:14px}
@@ -226,10 +229,29 @@ label.f /* packing */
   function itemsOf(day){
     var a=[];
     for(var k in R){ if(k.indexOf("i:")===0&&R[k].v&&R[k].v.day===day) a.push({id:k.slice(2),key:k,v:R[k].v}) }
-    a.sort(function(x,y){
-      var tx=x.v.time||"~", ty=y.v.time||"~"; if(tx!==ty) return tx<ty?-1:1;
-      if(x.v.ord!==y.v.ord) return x.v.ord-y.v.ord; return x.id<y.id?-1:1});
+    a.sort(function(x,y){ if(x.v.ord!==y.v.ord) return x.v.ord-y.v.ord; return x.id<y.id?-1:1 });
     return a;
+  }
+  /* 시간 순서대로 들어갈 자리의 ord 계산 (이후 ▲▼로 직접 바꿀 수 있음) */
+  function ordFor(day,time,selfKey){
+    var list=itemsOf(day).filter(function(x){return x.key!==selfKey}), idx=list.length;
+    if(time){ for(var i=0;i<list.length;i++){ if(list[i].v.time&&list[i].v.time>time){idx=i;break} } }
+    var prev=list[idx-1], next=list[idx];
+    if(prev&&next) return prev.v.ord<next.v.ord?(prev.v.ord+next.v.ord)/2:prev.v.ord+0.001;
+    if(prev) return prev.v.ord+1024;
+    if(next) return next.v.ord-1024;
+    return 1024;
+  }
+  /* 예전 방식(시간순 자동 정렬)으로 저장된 일정을 한 번만 직접 순서로 바꿈 */
+  function migrateOrder(){
+    for(var d=0;d<DAYS;d++){
+      var raw=[]; for(var k in R){ if(k.indexOf("i:")===0&&R[k].v&&R[k].v.day===d) raw.push({key:k,id:k.slice(2),v:R[k].v}) }
+      if(!raw.some(function(x){return x.v.ord>=1e11||(x.v.ord>=0&&x.v.ord<1000)})) continue;
+      raw.sort(function(x,y){
+        var tx=x.v.time||"~", ty=y.v.time||"~"; if(tx!==ty) return tx<ty?-1:1;
+        if(x.v.ord!==y.v.ord) return x.v.ord-y.v.ord; return x.id<y.id?-1:1});
+      raw.forEach(function(x,i){ var o=(i+1)*1024; if(x.v.ord!==o) setRec(x.key,Object.assign({},x.v,{ord:o})) });
+    }
   }
   function packs(){
     var a=[]; for(var k in R){ if(k.indexOf("p:")===0&&R[k].v) a.push({key:k,v:R[k].v,t:R[k].t}) }
@@ -284,9 +306,13 @@ label.f /* packing */
     }
     var n=new Date(), nowS=pad(n.getHours())+":"+pad(n.getMinutes()), nowKey=null;
     if(cur===td){ items.forEach(function(it){ if(it.v.time&&it.v.time<=nowS) nowKey=it.key }) }
-    var ol=document.createElement("ol");
+    var ol=document.createElement("ol"), spanS="", spanE="";
     items.forEach(function(it){
-      var v=it.v, li=document.createElement("li"); li.className="slot";
+      var v=it.v, li=document.createElement("li"), isSub=false, inSpan=false; li.className="slot";
+      if(spanE&&v.time&&v.time>=spanS&&v.time<spanE){ isSub=true; inSpan=true }
+      else if(v.time&&v.end&&v.end>v.time){ spanS=v.time; spanE=v.end; inSpan=true }
+      else { spanS=""; spanE="" }
+      if(isSub) li.className+=" sub"; if(inSpan) li.className+=" inspan";
       var t=document.createElement("div"); t.className="time"+(v.time?"":" none"); t.textContent=v.time||"미정";
       if(v.time&&v.end){var te=document.createElement("span"); te.className="end"; te.textContent="~ "+v.end; t.appendChild(te)}
       var c=document.createElement("div"); c.className="card"+(v.done?" done":"")+(it.key===nowKey?" now":""); c.tabIndex=0; c.setAttribute("role","button");
@@ -430,13 +456,12 @@ label.f /* packing */
   $("fDel").onclick=function(){ if(editing){ (editing.v.ph||[]).forEach(function(p){pDel(p.id); delete PB[p.id]}); setRec(editing.key,null) } dlg.close() };
   function move(dir){
     if(!editing) return;
-    var day=editing.v.day, list=itemsOf(day), i=-1;
+    var list=itemsOf(editing.v.day), i=-1;
     list.forEach(function(x,j){if(x.key===editing.key)i=j});
     var o=list[i+dir]; if(!o) return;
     var a=list[i], av=a.v, ov=o.v;
-    var ord=av.ord===ov.ord?ov.ord+dir*0.5:ov.ord, ord2=av.ord===ov.ord?av.ord:av.ord;
-    setRec(a.key,Object.assign({},av,{time:ov.time,end:ov.end||"",ord:ord}));
-    setRec(o.key,Object.assign({},ov,{time:av.time,end:av.end||"",ord:ord2}));
+    if(av.ord===ov.ord){ setRec(a.key,Object.assign({},av,{ord:ov.ord+dir*0.001})) }
+    else { setRec(a.key,Object.assign({},av,{ord:ov.ord})); setRec(o.key,Object.assign({},ov,{ord:av.ord})) }
     dlg.close();
   }
   $("fUp").onclick=function(){move(-1)}; $("fDown").onclick=function(){move(1)};
@@ -445,8 +470,10 @@ label.f /* packing */
     var time=$("fTime").value, end=$("fEnd").value, place=$("fPlace").value.trim(), note=$("fNote").value.trim(), day=parseInt($("fDay").value,10)||0;
     if(!place&&!note&&!time&&!edPh.length){dlg.close();return}
     var phs=edPh.map(function(p){return {id:p.id,url:p.url,at:p.at||0}});
-    if(editing){ setRec(editing.key,Object.assign({},editing.v,{day:day,time:time,end:time?end:"",place:place,note:note,ph:phs})); cur=day }
-    else { setRec(edKey,{day:day,time:time,end:time?end:"",place:place,note:note,ph:phs,done:false,ord:Date.now()}); cur=day }
+    if(editing){
+      var ev=editing.v, ord=(ev.day===day&&ev.time===time)?ev.ord:ordFor(day,time,editing.key);
+      setRec(editing.key,Object.assign({},ev,{day:day,time:time,end:time?end:"",place:place,note:note,ph:phs,ord:ord})); cur=day }
+    else { setRec(edKey,{day:day,time:time,end:time?end:"",place:place,note:note,ph:phs,done:false,ord:ordFor(day,time,null)}); cur=day }
     dlg.close(); uploadPending();
   };
 
@@ -508,7 +535,7 @@ label.f /* packing */
       if(!seenT[r.k]||r.t>seenT[r.k]) seenT[r.k]=r.t;
       if(merge(r.k,{v:v,t:r.t})) changed=true;
     });
-    if(changed){saveR(); renderSoon()}
+    if(changed){saveR(); renderSoon(); migrateOrder()}
   }
   function resync(){
     // 서버에 없는(또는 오래된) 내 기록을 다시 올림 (서버 보관은 12시간뿐이라)
@@ -536,7 +563,7 @@ label.f /* packing */
   view=lsGet(K_VIEW)==="pack"?"pack":"plan";
   var td=todayIdx(), st=parseInt(lsGet(K_TAB),10);
   cur=td>=0?td:(st>=0&&st<DAYS?st:0);
-  status(false); render(); connect(); flush(); pLoad();
+  migrateOrder(); status(false); render(); connect(); flush(); pLoad();
 
   if("serviceWorker" in navigator && location.protocol==="https:"){
     window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});

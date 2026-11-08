@@ -1,5 +1,5 @@
 // 오프라인에서도 열리게 페이지와 글꼴을 저장해 두는 서비스 워커
-var C = "jtp-v11";
+var C = "jtp-v12";
 self.addEventListener("install", function (e) {
   self.skipWaiting();
   e.waitUntil(caches.open(C).then(function (c) { return c.addAll(["./", "./index.html"]); }));

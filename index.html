@@ -44,12 +44,12 @@ header{padding-top:14px}
 .dayhead h2{margin:0;font-size:19px}
 .linkbtn{border:0;background:none;color:var(--muted);font:inherit;font-size:15px;text-decoration:underline;cursor:pointer;padding:4px 0}
 ol{list-style:none;margin:0;padding:0}
-li.slot{display:grid;grid-template-columns:50px 1fr;gap:0 10px;position:relative}
-li.slot::before{content:"";position:absolute;left:59px;top:0;bottom:0;width:2px;background:var(--line)}
-li.slot.inspan::before{background:var(--accent);opacity:.5;width:4px;left:58px}
+li.slot{display:grid;grid-template-columns:46px 1fr;gap:0 10px;position:relative}
+li.slot::before{content:"";position:absolute;left:55px;top:0;bottom:0;width:2px;background:var(--line)}
+li.slot.inspan::before{background:var(--accent);opacity:.5;width:4px;left:54px}
 li.slot.sub .card{margin-left:34px;width:calc(100% - 34px)}
 li.slot.sub .card::before{left:-41px;width:8px;height:8px;top:16px}
-.time{font:700 17px/1.2 var(--f-num);font-variant-numeric:tabular-nums;text-align:right;padding-top:12px;color:var(--accent)}
+.time{font:700 16px/1.2 var(--f-num);font-variant-numeric:tabular-nums;text-align:right;padding-top:12px;color:var(--accent)}
 .time .end{display:block;font:500 12.5px/1.2 var(--f-num);color:var(--muted);margin-top:3px}
 .time.none{color:var(--muted);font-weight:500;font-size:14px}
 .card{position:relative;margin:0 0 8px 14px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:9px 14px;min-width:0;display:grid;grid-template-columns:1fr auto;gap:0 10px;line-height:1.4;cursor:pointer;text-align:left;font:inherit;color:inherit;width:calc(100% - 14px)}
@@ -471,7 +471,7 @@ label.f /* packing */
     if(!place&&!note&&!time&&!edPh.length){dlg.close();return}
     var phs=edPh.map(function(p){return {id:p.id,url:p.url,at:p.at||0}});
     if(editing){
-      var ev=editing.v, ord=(ev.day===day&&ev.time===time)?ev.ord:ordFor(day,time,editing.key);
+      var ev=editing.v, ord=(ev.day===day)?ev.ord:ordFor(day,time,editing.key);
       setRec(editing.key,Object.assign({},ev,{day:day,time:time,end:time?end:"",place:place,note:note,ph:phs,ord:ord})); cur=day }
     else { setRec(edKey,{day:day,time:time,end:time?end:"",place:place,note:note,ph:phs,done:false,ord:ordFor(day,time,null)}); cur=day }
     dlg.close(); uploadPending();

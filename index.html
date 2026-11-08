@@ -245,7 +245,7 @@ label.f /* packing */
   /* 예전 방식(시간순 자동 정렬)으로 저장된 일정을 한 번만 직접 순서로 바꿈 */
   function migrateOrder(){
     for(var d=0;d<DAYS;d++){
-      var raw=[]; for(var k in R){ if(k.indexOf("i:")===0&&R[k].v&&R[k].v.day===d) raw.push({key:k,id:k.slice(2),v:R[k].v}) }
+      var raw=[]; for(var k in R){ if(k.indexOf("i:")===0&&R[k].t>1&&R[k].v&&R[k].v.day===d) raw.push({key:k,id:k.slice(2),v:R[k].v}) }
       if(!raw.some(function(x){return x.v.ord>=1e11||(x.v.ord>=0&&x.v.ord<1000)})) continue;
       raw.sort(function(x,y){
         var tx=x.v.time||"~", ty=y.v.time||"~"; if(tx!==ty) return tx<ty?-1:1;
@@ -537,11 +537,21 @@ label.f /* packing */
     });
     if(changed){saveR(); renderSoon(); migrateOrder()}
   }
-  function resync(){
-    // 서버에 없는(또는 오래된) 내 기록을 다시 올림 (서버 보관은 12시간뿐이라)
-    var keys=[]; for(var k in R){ if(R[k].t>1&&(!seenT[k]||seenT[k]<R[k].t)) keys.push(k) }
+  var CID=uid(), lastFull=0, helloT=null;
+  function fullPush(){
+    var keys=[]; for(var k in R){ if(R[k].t>1) keys.push(k) }
+    lastFull=Date.now();
     if(keys.length) sendKeys(keys).catch(function(){});
+  }
+  function resync(){
+    try{ fetch(BASE,{method:"POST",body:"h1."+CID}).catch(function(){}) }catch(e){}   // "나 새로 들어왔어, 다 보내줘"
+    if(Date.now()-lastFull>30000) fullPush();
     flush();
+  }
+  function onHello(m){
+    if(String(m.message).slice(3)===CID) return;
+    if(!m.time||Date.now()/1000-m.time>30) return;                                    // 지난 인사에는 답하지 않음
+    clearTimeout(helloT); helloT=setTimeout(fullPush,800+Math.random()*1500);
   }
   var es=null, syncT=null, retryT=null;
   function connect(){
@@ -549,7 +559,7 @@ label.f /* packing */
     seenT={};
     try{es=new EventSource(BASE+"/sse?since=all")}catch(e){return}
     es.onopen=function(){status(true); clearTimeout(syncT); syncT=setTimeout(resync,2500)};
-    es.onmessage=function(e){ var m; try{m=JSON.parse(e.data)}catch(x){return} if(m&&m.event==="message") handle(m.message) };
+    es.onmessage=function(e){ var m; try{m=JSON.parse(e.data)}catch(x){return} if(m&&m.event==="message"){ if(typeof m.message==="string"&&m.message.indexOf("h1.")===0) onHello(m); else handle(m.message) } };
     es.onerror=function(){ status(false); if(es){es.close(); es=null} clearTimeout(retryT); retryT=setTimeout(connect,5000) };
   }
   function disconnect(){ if(es){es.close(); es=null} status(false) }

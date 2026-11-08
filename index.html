@@ -89,6 +89,8 @@ dialog#mapDlg{height:88%;max-height:88%;padding:14px max(14px,env(safe-area-inse
 .mapwrap{display:flex;flex-direction:column;gap:10px;height:100%;min-height:0}
 .mapsearch{display:flex;gap:8px}
 .mapsearch input{flex:1;min-width:0;font:16px var(--f-body);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.extlinks{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.extlinks a{color:var(--accent);font-weight:700;text-decoration:none;border:1px solid var(--accent);border-radius:8px;padding:5px 10px;background:var(--soft)}
 .mapsearch button{flex:0 0 auto;border:0;border-radius:10px;background:var(--accent);color:var(--accent-fg);font:700 16px var(--f-body);padding:0 16px;cursor:pointer}
 #mRes{display:grid;gap:6px;max-height:150px;overflow-y:auto}
 #mRes button{text-align:left;font:15px var(--f-body);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 12px;cursor:pointer;word-break:keep-all;overflow-wrap:anywhere}
@@ -153,6 +155,7 @@ dialog#mapDlg{height:88%;max-height:88%;padding:14px max(14px,env(safe-area-inse
 <dialog id="mapDlg" aria-label="위치 지정">
   <div class="mapwrap">
     <div class="mapsearch"><input id="mQ" placeholder="주소·장소 검색 (한국어 / 日本語 / English)" autocomplete="off"><button type="button" id="mGo">검색</button></div>
+    <div class="extlinks"><a id="mG" target="_blank" rel="noopener">구글지도에서 찾기 ↗</a><a id="mN" target="_blank" rel="noopener">네이버지도에서 찾기 ↗</a><span>→ 거기서 공유/좌표를 복사해 위 검색칸에 붙여넣기</span></div>
     <div id="mRes"></div>
     <div id="mapBox"></div>
     <div class="mapmsg" id="mMsg"></div>
@@ -382,6 +385,12 @@ dialog#mapDlg{height:88%;max-height:88%;padding:14px max(14px,env(safe-area-inse
   /* ---------- 지도에서 위치 찍기 (Leaflet + OpenStreetMap) ---------- */
   var mapDlg=$("mapDlg"), map=null, marker=null, tmp=null, leafletP=null;
   function mmsg(t){$("mMsg").textContent=t}
+  function extLinks(){
+    var q=($("mQ").value||"").trim();
+    $("mG").href=q?"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(q):"https://www.google.com/maps";
+    $("mN").href=q?"https://map.naver.com/p/search/"+encodeURIComponent(q):"https://map.naver.com/";
+  }
+  $("mQ").addEventListener("input",extLinks); extLinks();
   function loadLeaflet(){
     if(window.L) return Promise.resolve();
     if(leafletP) return leafletP;
@@ -477,12 +486,12 @@ dialog#mapDlg{height:88%;max-height:88%;padding:14px max(14px,env(safe-area-inse
   var searchId=0;
   function doSearch(q){
     q=q.trim(); if(!q||!map) return;
-    var my=++searchId; mmsg("검색 중…"); $("mRes").innerHTML="";
+    extLinks(); var my=++searchId; mmsg("검색 중…"); $("mRes").innerHTML="";
     var c=parseCoords(q); if(c){ showResults([{name:"입력한 좌표",lat:c.lat,lng:c.lng}],false); return }
     var vs=variants(q), i=0;
     (function next(){
       if(my!==searchId) return;
-      if(i>=vs.length){ mmsg("못 찾았어요. 일본어나 영어로 써 보거나, 구글 지도에서 복사한 좌표를 붙여 넣거나, 지도를 직접 눌러 보세요."); return }
+      if(i>=vs.length){ mmsg("못 찾았어요. 위의 구글지도/네이버지도 버튼으로 찾은 뒤, 좌표나 링크를 복사해 검색칸에 붙여넣으세요."); return }
       var v=vs[i++];
       geoVariant(v.q,v.approx).then(function(list){
         if(my!==searchId) return;

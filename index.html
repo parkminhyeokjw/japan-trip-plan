@@ -535,7 +535,7 @@ label.f /* packing */
       if(!seenT[r.k]||r.t>seenT[r.k]) seenT[r.k]=r.t;
       if(merge(r.k,{v:v,t:r.t})) changed=true;
     });
-    if(changed){saveR(); renderSoon(); migrateOrder()}
+    if(changed){saveR(); renderSoon()}
   }
   var CID=uid(), lastFull=0, helloT=null;
   function fullPush(){
@@ -573,7 +573,7 @@ label.f /* packing */
   view=lsGet(K_VIEW)==="pack"?"pack":"plan";
   var td=todayIdx(), st=parseInt(lsGet(K_TAB),10);
   cur=td>=0?td:(st>=0&&st<DAYS?st:0);
-  migrateOrder(); status(false); render(); connect(); flush(); pLoad();
+  status(false); render(); connect(); flush(); pLoad();
 
   if("serviceWorker" in navigator && location.protocol==="https:"){
     window.addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})});

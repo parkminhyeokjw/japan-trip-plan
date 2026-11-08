@@ -211,7 +211,7 @@ label.f /* packing */
   var PURL=/^https:\/\/litter\.catbox\.moe\/[A-Za-z0-9._-]{1,40}$/;
   function cleanPh(a){
     var o=[]; if(!Array.isArray(a)) return o;
-    a.slice(0,6).forEach(function(x){ if(x&&typeof x.id==="string"&&/^[A-Za-z0-9]{1,16}$/.test(x.id)&&(x.url===""||(typeof x.url==="string"&&PURL.test(x.url)))) o.push({id:x.id,url:x.url}) });
+    a.slice(0,6).forEach(function(x){ if(x&&typeof x.id==="string"&&/^[A-Za-z0-9]{1,16}$/.test(x.id)&&(x.url===""||(typeof x.url==="string"&&PURL.test(x.url)))) o.push({id:x.id,url:x.url,at:(typeof x.at==="number"&&isFinite(x.at))?x.at:0}) });
     return o;
   }
   function validKey(k){return typeof k==="string"&&k.length<40&&(k==="meta"||/^[ip]:[A-Za-z0-9]{1,16}$/.test(k))}
@@ -374,12 +374,12 @@ label.f /* packing */
   function uploadPending(){
     if(upBusy||!navigator.onLine||!pdb) return;
     var key=null, id=null;
-    for(var k in R){ var v=R[k].v; if(v&&v.ph) for(var i=0;i<v.ph.length;i++) if(v.ph[i].url===""&&PB[v.ph[i].id]){key=k;id=v.ph[i].id;break} if(key)break }
+    for(var k in R){ var v=R[k].v; if(v&&v.ph) for(var i=0;i<v.ph.length;i++) if(PB[v.ph[i].id]&&(v.ph[i].url===""||Date.now()-(v.ph[i].at||0)>48*3600*1000)){key=k;id=v.ph[i].id;break} if(key)break }
     if(!key) return;
     upBusy=true;
     upload(PB[id].blob).then(function(url){
       var cv=R[key]&&R[key].v;
-      if(cv&&cv.ph) setRec(key,Object.assign({},cv,{ph:cv.ph.map(function(x){return x.id===id?{id:id,url:url}:x})}));
+      if(cv&&cv.ph) setRec(key,Object.assign({},cv,{ph:cv.ph.map(function(x){return x.id===id?{id:id,url:url,at:Date.now()}:x})}));
       upBusy=false; uploadPending();
     }).catch(function(){ upBusy=false; clearTimeout(upT); upT=setTimeout(uploadPending,15000) });
   }
@@ -409,7 +409,7 @@ label.f /* packing */
   $("phIn").onchange=function(){
     var files=Array.prototype.slice.call(this.files||[]); this.value="";
     files.slice(0,Math.max(0,6-edPh.length)).reduce(function(p,f){
-      return p.then(function(){return shrink(f).then(function(b){var id=uid(); PB[id]={blob:b,url:URL.createObjectURL(b)}; pPut(id,b); edPh.push({id:id,url:""}); renderEdPh()},function(){})});
+      return p.then(function(){return shrink(f).then(function(b){var id=uid(); PB[id]={blob:b,url:URL.createObjectURL(b)}; pPut(id,b); edPh.push({id:id,url:"",at:0}); renderEdPh()},function(){})});
     },Promise.resolve());
   };
 
@@ -420,7 +420,7 @@ label.f /* packing */
     for(var i=0;i<DAYS;i++){var o=document.createElement("option"); o.value=i; var d=dateOf(i); o.textContent=(i+1)+"일차 ("+(d.getMonth()+1)+"/"+d.getDate()+")"; sel.appendChild(o)}
     sel.value=it?it.v.day:cur;
     $("fTime").value=it?it.v.time:""; $("fEnd").value=it&&it.v.end?it.v.end:""; $("fPlace").value=it?it.v.place:""; $("fNote").value=it?it.v.note:"";
-    edKey=it?it.key:"i:"+uid(); edPh=(it&&it.v.ph?it.v.ph:[]).map(function(p){return {id:p.id,url:p.url}}); renderEdPh(); $("phWrap").hidden=!pdb;
+    edKey=it?it.key:"i:"+uid(); edPh=(it&&it.v.ph?it.v.ph:[]).map(function(p){return {id:p.id,url:p.url,at:p.at||0}}); renderEdPh(); $("phWrap").hidden=!pdb;
     $("fDel").style.display=it?"":"none"; $("mvRow").style.display=it?"":"none";
     dlg.showModal(); if(!it) $("fTime").focus();
   }
@@ -444,7 +444,7 @@ label.f /* packing */
     e.preventDefault();
     var time=$("fTime").value, end=$("fEnd").value, place=$("fPlace").value.trim(), note=$("fNote").value.trim(), day=parseInt($("fDay").value,10)||0;
     if(!place&&!note&&!time&&!edPh.length){dlg.close();return}
-    var phs=edPh.map(function(p){return {id:p.id,url:p.url}});
+    var phs=edPh.map(function(p){return {id:p.id,url:p.url,at:p.at||0}});
     if(editing){ setRec(editing.key,Object.assign({},editing.v,{day:day,time:time,end:time?end:"",place:place,note:note,ph:phs})); cur=day }
     else { setRec(edKey,{day:day,time:time,end:time?end:"",place:place,note:note,ph:phs,done:false,ord:Date.now()}); cur=day }
     dlg.close(); uploadPending();
@@ -529,7 +529,7 @@ label.f /* packing */
   window.addEventListener("online",function(){caching={}; connect(); scheduleFlush(); uploadPending(); render()});
   window.addEventListener("offline",disconnect);
   document.addEventListener("visibilitychange",function(){ if(!document.hidden){ connect(); flush(); render() } });
-  setInterval(function(){ if(!document.hidden&&view==="plan"&&!dlg.open) render() },60000);
+  setInterval(function(){ if(!document.hidden&&view==="plan"&&!dlg.open) render(); if(!document.hidden) uploadPending() },60000);
 
   /* ---------- 시작 ---------- */
   loadState();

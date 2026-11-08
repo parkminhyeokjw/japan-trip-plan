@@ -140,7 +140,7 @@ label.f /* packing */
     </div>
     <label class="f">장소<input id="fPlace" placeholder="예: 센소지, 시부야 스카이" autocomplete="off"></label>
     <label class="f">메모<textarea id="fNote" placeholder="뭐 할지, 뭐 먹을지, 교통편 등"></textarea></label>
-    <div id="phWrap"><div class="phrow"><button type="button" class="phadd" id="phAdd">+ 사진</button><input id="phIn" type="file" accept="image/*" multiple hidden><div class="phs" id="phs"></div></div><div class="phnote">사진은 이 폰에만 저장돼요 (친구 폰에는 안 보여요)</div></div>
+    <div id="phWrap"><div class="phrow"><button type="button" class="phadd" id="phAdd">+ 사진</button><input id="phIn" type="file" accept="image/*" multiple hidden><div class="phs" id="phs"></div></div><div class="phnote">사진은 친구 폰에도 보여요 (최대 6장)</div></div>
     <div class="btns" id="mvRow"><button type="button" class="mv" id="fUp">▲ 위로</button><button type="button" class="mv" id="fDown">▼ 아래로</button></div>
     <div class="btns">
       <button type="button" class="del" id="fDel">삭제</button>
@@ -203,10 +203,16 @@ label.f /* packing */
     if(key.indexOf("i:")===0){
       var day=parseInt(v.day,10); if(!(day>=0&&day<DAYS)) return undefined;
       var ok=typeof v.lat==="number"&&typeof v.lng==="number"&&isFinite(v.lat)&&isFinite(v.lng)&&Math.abs(v.lat)<=90&&Math.abs(v.lng)<=180;
-      return {day:day,time:/^\d\d:\d\d$/.test(v.time)?v.time:"",end:/^\d\d:\d\d$/.test(v.end)?v.end:"",place:str(v.place,200),note:str(v.note,2000),done:v.done===true,ord:typeof v.ord==="number"?v.ord:0,lat:ok?v.lat:null,lng:ok?v.lng:null};
+      return {day:day,time:/^\d\d:\d\d$/.test(v.time)?v.time:"",end:/^\d\d:\d\d$/.test(v.end)?v.end:"",place:str(v.place,200),note:str(v.note,2000),ph:cleanPh(v.ph),done:v.done===true,ord:typeof v.ord==="number"?v.ord:0,lat:ok?v.lat:null,lng:ok?v.lng:null};
     }
     if(key.indexOf("p:")===0) return {text:str(v.text,100),done:v.done===true,by:str(v.by,12),doneBy:str(v.doneBy,12)};
     return undefined;
+  }
+  var PURL=/^https:\/\/litter\.catbox\.moe\/[A-Za-z0-9._-]{1,40}$/;
+  function cleanPh(a){
+    var o=[]; if(!Array.isArray(a)) return o;
+    a.slice(0,6).forEach(function(x){ if(x&&typeof x.id==="string"&&/^[A-Za-z0-9]{1,16}$/.test(x.id)&&(x.url===""||(typeof x.url==="string"&&PURL.test(x.url)))) o.push({id:x.id,url:x.url}) });
+    return o;
   }
   function validKey(k){return typeof k==="string"&&k.length<40&&(k==="meta"||/^[ip]:[A-Za-z0-9]{1,16}$/.test(k))}
   function merge(key,rec){
@@ -290,9 +296,13 @@ label.f /* packing */
       ck.onclick=function(ev){ev.stopPropagation(); var nv=Object.assign({},v,{done:!v.done}); setRec(it.key,nv)};
       c.appendChild(p); c.appendChild(ck);
       if(v.note){var nt=document.createElement("div"); nt.className="note"; nt.textContent=v.note; c.appendChild(nt)}
-      if(PH[it.key]&&PH[it.key].length){
+      if(v.ph&&v.ph.length){
         var pw=document.createElement("div"); pw.className="photos";
-        PH[it.key].forEach(function(p){var im=document.createElement("img"); im.src=p.url; im.alt="사진"; im.loading="lazy"; im.onclick=function(ev){ev.stopPropagation(); openViewer(p.url)}; pw.appendChild(im)});
+        v.ph.forEach(function(p){
+          cacheRemote(p); var src=phSrc(p), im=document.createElement("img");
+          if(src){ im.src=src; im.alt="사진"; im.onclick=function(ev){ev.stopPropagation(); openViewer(src)} } else { im.alt="올리는 중"; im.style.background="var(--soft)" }
+          pw.appendChild(im);
+        });
         c.appendChild(pw);
       }
       c.onclick=function(){openEdit(it)};
@@ -323,22 +333,22 @@ label.f /* packing */
     sec("챙길 것",todo); sec("챙김 완료",done);
   }
 
-  /* ---------- 사진 (이 폰의 IndexedDB에만 저장) ---------- */
-  var PH={}, pdb=null;
+  /* ---------- 사진: 작게 줄여 무료 임시 서버(72시간)에 올리고, 주소만 공유. 각 폰은 받은 사진을 저장해 둠 ---------- */
+  var PB={}, pdb=null, caching={}, upBusy=false, upT=null;
   function pStore(mode){return pdb.transaction("p",mode).objectStore("p")}
-  function pPut(key,arr){ if(!pdb) return; try{pStore("readwrite").put(arr.map(function(x){return {id:x.id,blob:x.blob}}),key)}catch(e){} }
-  function pDel(key){ if(!pdb) return; try{pStore("readwrite").delete(key)}catch(e){} }
+  function pPut(id,blob){ if(!pdb) return; try{pStore("readwrite").put(blob,id)}catch(e){} }
+  function pDel(id){ if(!pdb) return; try{pStore("readwrite").delete(id)}catch(e){} }
   function pLoad(){
     try{
-      var q=indexedDB.open("jtp-photos",1);
+      var q=indexedDB.open("jtp-photos2",1);
       q.onupgradeneeded=function(){q.result.createObjectStore("p")};
       q.onsuccess=function(){
         pdb=q.result;
         var cr=pStore("readonly").openCursor();
         cr.onsuccess=function(){
           var c=cr.result;
-          if(c){ PH[c.key]=(c.value||[]).map(function(x){return {id:x.id,blob:x.blob,url:URL.createObjectURL(x.blob)}}); c.continue() }
-          else render();
+          if(c){ PB[c.key]={blob:c.value,url:URL.createObjectURL(c.value)}; c.continue() }
+          else { render(); uploadPending() }
         };
       };
     }catch(e){}
@@ -356,6 +366,31 @@ label.f /* packing */
       im.src=u;
     });
   }
+  function upload(blob){
+    var fd=new FormData(); fd.append("reqtype","fileupload"); fd.append("time","72h"); fd.append("fileToUpload",blob,"p.jpg");
+    return fetch("https://litterbox.catbox.moe/resources/internals/api.php",{method:"POST",body:fd}).then(function(r){return r.text()})
+      .then(function(t){t=t.trim(); if(!PURL.test(t)) throw new Error("up"); return t});
+  }
+  function uploadPending(){
+    if(upBusy||!navigator.onLine||!pdb) return;
+    var key=null, id=null;
+    for(var k in R){ var v=R[k].v; if(v&&v.ph) for(var i=0;i<v.ph.length;i++) if(v.ph[i].url===""&&PB[v.ph[i].id]){key=k;id=v.ph[i].id;break} if(key)break }
+    if(!key) return;
+    upBusy=true;
+    upload(PB[id].blob).then(function(url){
+      var cv=R[key]&&R[key].v;
+      if(cv&&cv.ph) setRec(key,Object.assign({},cv,{ph:cv.ph.map(function(x){return x.id===id?{id:id,url:url}:x})}));
+      upBusy=false; uploadPending();
+    }).catch(function(){ upBusy=false; clearTimeout(upT); upT=setTimeout(uploadPending,15000) });
+  }
+  function cacheRemote(p){
+    if(PB[p.id]||!p.url||caching[p.id]||!navigator.onLine) return;
+    caching[p.id]=1;
+    fetch(p.url).then(function(r){if(!r.ok) throw 0; return r.blob()}).then(function(b){
+      PB[p.id]={blob:b,url:URL.createObjectURL(b)}; pPut(p.id,b); renderSoon();
+    }).catch(function(){ setTimeout(function(){delete caching[p.id]},20000) });
+  }
+  function phSrc(p){ return PB[p.id]?PB[p.id].url:(p.url||"") }
   function openViewer(url){ $("vwImg").src=url; $("vw").showModal() }
   $("vw").onclick=function(){$("vw").close()};
   var edKey=null, edPh=[];
@@ -363,17 +398,18 @@ label.f /* packing */
     var box=$("phs"); box.innerHTML="";
     edPh.forEach(function(p,i){
       var w=document.createElement("div"); w.className="ph";
-      var im=document.createElement("img"); im.src=p.url; im.alt="사진"; im.onclick=function(){openViewer(p.url)};
+      var src=phSrc(p), im=document.createElement("img"); if(src) im.src=src; im.alt="사진"; im.onclick=function(){if(src) openViewer(src)};
       var x=document.createElement("button"); x.type="button"; x.textContent="×"; x.setAttribute("aria-label","사진 삭제");
       x.onclick=function(){edPh.splice(i,1); renderEdPh()};
       w.appendChild(im); w.appendChild(x); box.appendChild(w);
     });
+    $("phAdd").style.display=edPh.length>=6?"none":"";
   }
   $("phAdd").onclick=function(){$("phIn").click()};
   $("phIn").onchange=function(){
     var files=Array.prototype.slice.call(this.files||[]); this.value="";
-    files.slice(0,Math.max(0,10-edPh.length)).reduce(function(p,f){
-      return p.then(function(){return shrink(f).then(function(b){edPh.push({id:uid(),blob:b,url:URL.createObjectURL(b)}); renderEdPh()},function(){})});
+    files.slice(0,Math.max(0,6-edPh.length)).reduce(function(p,f){
+      return p.then(function(){return shrink(f).then(function(b){var id=uid(); PB[id]={blob:b,url:URL.createObjectURL(b)}; pPut(id,b); edPh.push({id:id,url:""}); renderEdPh()},function(){})});
     },Promise.resolve());
   };
 
@@ -384,14 +420,14 @@ label.f /* packing */
     for(var i=0;i<DAYS;i++){var o=document.createElement("option"); o.value=i; var d=dateOf(i); o.textContent=(i+1)+"일차 ("+(d.getMonth()+1)+"/"+d.getDate()+")"; sel.appendChild(o)}
     sel.value=it?it.v.day:cur;
     $("fTime").value=it?it.v.time:""; $("fEnd").value=it&&it.v.end?it.v.end:""; $("fPlace").value=it?it.v.place:""; $("fNote").value=it?it.v.note:"";
-    edKey=it?it.key:"i:"+uid(); edPh=(PH[edKey]||[]).slice(); renderEdPh(); $("phWrap").hidden=!pdb;
+    edKey=it?it.key:"i:"+uid(); edPh=(it&&it.v.ph?it.v.ph:[]).map(function(p){return {id:p.id,url:p.url}}); renderEdPh(); $("phWrap").hidden=!pdb;
     $("fDel").style.display=it?"":"none"; $("mvRow").style.display=it?"":"none";
     dlg.showModal(); if(!it) $("fTime").focus();
   }
   $("addBtn").onclick=function(){openEdit(null)};
   $("fCancel").onclick=function(){dlg.close()};
   dlg.addEventListener("click",function(e){if(e.target===dlg)dlg.close()});
-  $("fDel").onclick=function(){ if(editing){ setRec(editing.key,null); pDel(editing.key); delete PH[editing.key] } dlg.close() };
+  $("fDel").onclick=function(){ if(editing){ (editing.v.ph||[]).forEach(function(p){pDel(p.id); delete PB[p.id]}); setRec(editing.key,null) } dlg.close() };
   function move(dir){
     if(!editing) return;
     var day=editing.v.day, list=itemsOf(day), i=-1;
@@ -408,10 +444,10 @@ label.f /* packing */
     e.preventDefault();
     var time=$("fTime").value, end=$("fEnd").value, place=$("fPlace").value.trim(), note=$("fNote").value.trim(), day=parseInt($("fDay").value,10)||0;
     if(!place&&!note&&!time&&!edPh.length){dlg.close();return}
-    if(edPh.length){PH[edKey]=edPh.slice(); pPut(edKey,edPh)} else if(PH[edKey]){delete PH[edKey]; pDel(edKey)}
-    if(editing){ setRec(editing.key,Object.assign({},editing.v,{day:day,time:time,end:time?end:"",place:place,note:note})); cur=day }
-    else { setRec(edKey,{day:day,time:time,end:time?end:"",place:place,note:note,done:false,ord:Date.now()}); cur=day }
-    dlg.close();
+    var phs=edPh.map(function(p){return {id:p.id,url:p.url}});
+    if(editing){ setRec(editing.key,Object.assign({},editing.v,{day:day,time:time,end:time?end:"",place:place,note:note,ph:phs})); cur=day }
+    else { setRec(edKey,{day:day,time:time,end:time?end:"",place:place,note:note,ph:phs,done:false,ord:Date.now()}); cur=day }
+    dlg.close(); uploadPending();
   };
 
 
@@ -490,7 +526,7 @@ label.f /* packing */
     es.onerror=function(){ status(false); if(es){es.close(); es=null} clearTimeout(retryT); retryT=setTimeout(connect,5000) };
   }
   function disconnect(){ if(es){es.close(); es=null} status(false) }
-  window.addEventListener("online",function(){connect(); scheduleFlush()});
+  window.addEventListener("online",function(){caching={}; connect(); scheduleFlush(); uploadPending(); render()});
   window.addEventListener("offline",disconnect);
   document.addEventListener("visibilitychange",function(){ if(!document.hidden){ connect(); flush(); render() } });
   setInterval(function(){ if(!document.hidden&&view==="plan"&&!dlg.open) render() },60000);

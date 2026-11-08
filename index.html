@@ -81,24 +81,7 @@ textarea{min-height:84px;resize:vertical}
 .btns .mv{flex:0 0 auto;padding:10px 16px}
 .hint{font-size:13px;color:var(--muted);margin:14px 0 0}
 .incoming{margin:12px 0 0;background:var(--soft);border-radius:10px;padding:12px;font-size:16px}
-.placerow{display:flex;gap:8px}
-label.f .placerow input{width:auto;flex:1}
-.locbtn{flex:0 0 auto;border:1px solid var(--accent);background:var(--soft);color:var(--accent);border-radius:8px;font:700 15px var(--f-body);padding:0 14px;cursor:pointer}
-.loct{font-size:13px;color:var(--muted);margin-top:-6px}
-dialog#mapDlg{height:88%;max-height:88%;padding:14px max(14px,env(safe-area-inset-left,0px)) calc(14px + env(safe-area-inset-bottom,0px))}
-.mapwrap{display:flex;flex-direction:column;gap:10px;height:100%;min-height:0}
-.mapsearch{display:flex;gap:8px}
-.mapsearch input{flex:1;min-width:0;font:16px var(--f-body);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
-.extlinks{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--muted)}
-.extlinks a{color:var(--accent);font-weight:700;text-decoration:none;border:1px solid var(--accent);border-radius:8px;padding:5px 10px;background:var(--soft)}
-.mapsearch button{flex:0 0 auto;border:0;border-radius:10px;background:var(--accent);color:var(--accent-fg);font:700 16px var(--f-body);padding:0 16px;cursor:pointer}
-#mRes{display:grid;gap:6px;max-height:150px;overflow-y:auto}
-#mRes button{text-align:left;font:15px var(--f-body);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 12px;cursor:pointer;word-break:keep-all;overflow-wrap:anywhere}
-#mapBox{flex:1;min-height:240px;border-radius:12px;border:1px solid var(--line);overflow:hidden;background:var(--soft)}
-.mapmsg{font-size:13px;color:var(--muted)}
-.pin{display:block;width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#d93025;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.45)}
-.leaflet-container{font-family:var(--f-body)}
-/* packing */
+label.f /* packing */
 .addrow{display:flex;gap:8px;margin:6px 0 14px}
 .addrow input{flex:1;min-width:0;font:16px var(--f-body);color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
 .addrow button{flex:0 0 auto;border:0;border-radius:10px;background:var(--accent);color:var(--accent-fg);font:700 16px var(--f-body);padding:0 18px;cursor:pointer}
@@ -140,8 +123,7 @@ dialog#mapDlg{height:88%;max-height:88%;padding:14px max(14px,env(safe-area-inse
       <label class="f">날짜<select id="fDay"></select></label>
       <label class="f">시간<input id="fTime" type="time"></label>
     </div>
-    <label class="f">장소<span class="placerow"><input id="fPlace" placeholder="예: 센소지, 시부야 스카이" autocomplete="off"><button type="button" class="locbtn" id="fLoc">위치</button></span></label>
-    <div class="loct" id="fLocT"></div>
+    <label class="f">장소<input id="fPlace" placeholder="예: 센소지, 시부야 스카이" autocomplete="off"></label>
     <label class="f">메모<textarea id="fNote" placeholder="뭐 할지, 뭐 먹을지, 교통편 등"></textarea></label>
     <div class="btns" id="mvRow"><button type="button" class="mv" id="fUp">▲ 위로</button><button type="button" class="mv" id="fDown">▼ 아래로</button></div>
     <div class="btns">
@@ -152,20 +134,7 @@ dialog#mapDlg{height:88%;max-height:88%;padding:14px max(14px,env(safe-area-inse
   </form>
 </dialog>
 
-<dialog id="mapDlg" aria-label="위치 지정">
-  <div class="mapwrap">
-    <div class="mapsearch"><input id="mQ" placeholder="주소·장소 검색 (한국어 / 日本語 / English)" autocomplete="off"><button type="button" id="mGo">검색</button></div>
-    <div class="extlinks"><a id="mG" target="_blank" rel="noopener">구글지도에서 찾기 ↗</a><a id="mN" target="_blank" rel="noopener">네이버지도에서 찾기 ↗</a><span>→ 거기서 공유/좌표를 복사해 위 검색칸에 붙여넣기</span></div>
-    <div id="mRes"></div>
-    <div id="mapBox"></div>
-    <div class="mapmsg" id="mMsg"></div>
-    <div class="btns">
-      <button type="button" class="del" id="mClear">위치 지우기</button>
-      <button type="button" id="mCancel">취소</button>
-      <button type="button" class="pri" id="mOk">이 위치로</button>
-    </div>
-  </div>
-</dialog>
+
 
 <script>
 (function(){
@@ -252,8 +221,7 @@ dialog#mapDlg{height:88%;max-height:88%;padding:14px max(14px,env(safe-area-inse
     var i=Math.round((t-s)/86400000); return (i>=0&&i<DAYS)?i:-1;
   }
   function mapUrl(q){return "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(q)}
-  function hasLoc(v){return typeof v.lat==="number"&&typeof v.lng==="number"}
-  function locStr(v){return hasLoc(v)?(v.lat+","+v.lng):v.place}
+  function locStr(v){return v.place}
   function dirUrl(a,b){return "https://www.google.com/maps/dir/?api=1&travelmode=transit&origin="+encodeURIComponent(a)+"&destination="+encodeURIComponent(b)}
 
   var rafPending=false;
@@ -306,13 +274,13 @@ dialog#mapDlg{height:88%;max-height:88%;padding:14px max(14px,env(safe-area-inse
       ck.onclick=function(ev){ev.stopPropagation(); var nv=Object.assign({},v,{done:!v.done}); setRec(it.key,nv)};
       c.appendChild(p); c.appendChild(ck);
       if(v.note){var nt=document.createElement("div"); nt.className="note"; nt.textContent=v.note; c.appendChild(nt)}
-      if(v.place||hasLoc(v)){
+      if(v.place){
         var ls=document.createElement("div"); ls.className="links";
         var a=document.createElement("a"); a.href=mapUrl(locStr(v)); a.target="_blank"; a.rel="noopener"; a.textContent="지도 ↗"; a.onclick=function(ev){ev.stopPropagation()}; ls.appendChild(a);
         if(prevRef){var a2=document.createElement("a"); a2.href=dirUrl(prevRef,locStr(v)); a2.target="_blank"; a2.rel="noopener"; a2.textContent="이전 장소에서 길찾기 ↗"; a2.onclick=function(ev){ev.stopPropagation()}; ls.appendChild(a2)}
         c.appendChild(ls);
       }
-      if(v.place||hasLoc(v)) prevRef=locStr(v);
+      if(v.place) prevRef=locStr(v);
       c.onclick=function(){openEdit(it)};
       c.onkeydown=function(ev){if(ev.key==="Enter"&&ev.target===c)openEdit(it)};
       li.appendChild(t); li.appendChild(c); ol.appendChild(li);
@@ -342,17 +310,12 @@ dialog#mapDlg{height:88%;max-height:88%;padding:14px max(14px,env(safe-area-inse
   }
 
   /* ---------- 일정 편집창 ---------- */
-  var dlg=$("dlg"), pin=null;
-  function showLoc(){
-    $("fLocT").textContent=pin?"위치 지정됨 ("+pin.lat.toFixed(4)+", "+pin.lng.toFixed(4)+"). 카드의 '지도'를 누르면 이 위치가 열려요.":"위치를 지정하면 카드의 '지도'가 그 자리를 정확히 열어요.";
-    $("fLoc").textContent=pin?"위치 ✓":"위치";
-  }
+  var dlg=$("dlg");
   function openEdit(it){
     editing=it||null; var sel=$("fDay"); sel.innerHTML="";
     for(var i=0;i<DAYS;i++){var o=document.createElement("option"); o.value=i; var d=dateOf(i); o.textContent=(i+1)+"일차 ("+(d.getMonth()+1)+"/"+d.getDate()+")"; sel.appendChild(o)}
     sel.value=it?it.v.day:cur;
     $("fTime").value=it?it.v.time:""; $("fPlace").value=it?it.v.place:""; $("fNote").value=it?it.v.note:"";
-    pin=(it&&hasLoc(it.v))?{lat:it.v.lat,lng:it.v.lng}:null; showLoc();
     $("fDel").style.display=it?"":"none"; $("mvRow").style.display=it?"":"none";
     dlg.showModal(); if(!it) $("fTime").focus();
   }
@@ -375,153 +338,12 @@ dialog#mapDlg{height:88%;max-height:88%;padding:14px max(14px,env(safe-area-inse
   $("f").onsubmit=function(e){
     e.preventDefault();
     var time=$("fTime").value, place=$("fPlace").value.trim(), note=$("fNote").value.trim(), day=parseInt($("fDay").value,10)||0;
-    if(!place&&!note&&!time&&!pin){dlg.close();return}
-    if(editing){ setRec(editing.key,Object.assign({},editing.v,{day:day,time:time,place:place,note:note,lat:pin?pin.lat:null,lng:pin?pin.lng:null})); cur=day }
-    else { setRec("i:"+uid(),{day:day,time:time,place:place,note:note,done:false,ord:Date.now(),lat:pin?pin.lat:null,lng:pin?pin.lng:null}); cur=day }
+    if(!place&&!note&&!time){dlg.close();return}
+    if(editing){ setRec(editing.key,Object.assign({},editing.v,{day:day,time:time,place:place,note:note})); cur=day }
+    else { setRec("i:"+uid(),{day:day,time:time,place:place,note:note,done:false,ord:Date.now()}); cur=day }
     dlg.close();
   };
 
-
-  /* ---------- 지도에서 위치 찍기 (Leaflet + OpenStreetMap) ---------- */
-  var mapDlg=$("mapDlg"), map=null, marker=null, tmp=null, leafletP=null;
-  function mmsg(t){$("mMsg").textContent=t}
-  function extLinks(){
-    var q=($("mQ").value||"").trim();
-    $("mG").href=q?"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(q):"https://www.google.com/maps";
-    $("mN").href=q?"https://map.naver.com/p/search/"+encodeURIComponent(q):"https://map.naver.com/";
-  }
-  $("mQ").addEventListener("input",extLinks); extLinks();
-  function loadLeaflet(){
-    if(window.L) return Promise.resolve();
-    if(leafletP) return leafletP;
-    leafletP=new Promise(function(res,rej){
-      var l=document.createElement("link"); l.rel="stylesheet"; l.href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"; document.head.appendChild(l);
-      var sc=document.createElement("script"); sc.src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"; sc.onload=res; sc.onerror=function(){leafletP=null; rej(new Error("load"))};
-      document.head.appendChild(sc);
-    });
-    return leafletP;
-  }
-  function rnd(n){return Math.round(n*1e6)/1e6}
-  function setPin(lat,lng){
-    tmp={lat:rnd(lat),lng:rnd(lng)};
-    if(!marker){
-      marker=L.marker([lat,lng],{draggable:true,icon:L.divIcon({className:"",html:'<span class="pin"></span>',iconSize:[26,26],iconAnchor:[13,30]})}).addTo(map);
-      marker.on("dragend",function(){var p=marker.getLatLng(); tmp={lat:rnd(p.lat),lng:rnd(p.lng)}});
-    } else marker.setLatLng([lat,lng]);
-  }
-  /* 한국어 지명 -> 일본어 (주소 검색이 한국어로도 되게) */
-  var KJ={"시부야 스크램블 교차로":"渋谷スクランブル交差点","시부야 스크램블":"渋谷スクランブル交差点","시부야 스카이":"SHIBUYA SKY","시부야스카이":"SHIBUYA SKY","도쿄 디즈니랜드":"東京ディズニーランド","도쿄 디즈니씨":"東京ディズニーシー","디즈니랜드":"東京ディズニーランド","디즈니씨":"東京ディズニーシー","팀랩":"チームラボ","지요다":"千代田","주오":"中央","미나토":"港","신주쿠":"新宿","분쿄":"文京","다이토":"台東","스미다":"墨田","고토":"江東","시나가와":"品川","메구로":"目黒","오타":"大田","세타가야":"世田谷","시부야":"渋谷","나카노":"中野","스기나미":"杉並","도시마":"豊島","아라카와":"荒川","이타바시":"板橋","네리마":"練馬","아다치":"足立","가쓰시카":"葛飾","에도가와":"江戸川",
-    "도쿄도":"東京都","도쿄":"東京","아사쿠사":"浅草","우에노":"上野","아키하바라":"秋葉原","긴자":"銀座","이케부쿠로":"池袋","롯폰기":"六本木","하라주쿠":"原宿","오모테산도":"表参道","에비스":"恵比寿","오다이바":"お台場","가부키초":"歌舞伎町","신오쿠보":"新大久保","나리타":"成田","하네다":"羽田","요요기":"代々木","신바시":"新橋","닛포리":"日暮里","이다바시":"飯田橋","오차노미즈":"御茶ノ水","진보초":"神保町","마루노우치":"丸の内","니혼바시":"日本橋","쓰키지":"築地","도요스":"豊洲","다이칸야마":"代官山","나카메구로":"中目黒","시모키타자와":"下北沢","기치조지":"吉祥寺","스카이트리":"スカイツリー","도쿄타워":"東京タワー","센소지":"浅草寺","메이지신궁":"明治神宮","우에노공원":"上野公園",
-    "오사카":"大阪","난바":"難波","우메다":"梅田","도톤보리":"道頓堀","신사이바시":"心斎橋","덴노지":"天王寺","오사카성":"大阪城","유니버설스튜디오":"ユニバーサル・スタジオ・ジャパン",
-    "교토":"京都","기온":"祇園","아라시야마":"嵐山","후시미이나리":"伏見稲荷","가와라마치":"河原町","기요미즈데라":"清水寺","금각사":"金閣寺","나라":"奈良","고베":"神戸","후쿠오카":"福岡","하카타":"博多","나고야":"名古屋","삿포로":"札幌","요코하마":"横浜","하코네":"箱根","가마쿠라":"鎌倉","오키나와":"沖縄","나하":"那覇","히로시마":"広島","가와사키":"川崎","후지산":"富士山","가와구치코":"河口湖","닛코":"日光","센다이":"仙台","니가타":"新潟","가나자와":"金沢","구마모토":"熊本","나가사키":"長崎","벳푸":"別府","유후인":"由布院"};
-  var KJkeys=Object.keys(KJ).sort(function(x,y){return y.length-x.length});
-  function k2j(q){
-    var o=q;
-    KJkeys.forEach(function(k){ if(o.indexOf(k)>=0) o=o.split(k).join(KJ[k]) });
-    var CJ="([\\u3040-\\u30ff\\u3400-\\u9fff])";
-    o=o.replace(new RegExp(CJ+"\\s*구","g"),"$1区").replace(new RegExp(CJ+"\\s*역","g"),"$1駅").replace(new RegExp(CJ+"\\s*시","g"),"$1市").replace(new RegExp(CJ+"\\s*현","g"),"$1県").replace(new RegExp(CJ+"\\s*(\\d+)\\s*정목","g"),"$1$2丁目");
-    return o;
-  }
-  function hasJa(v){return /[\u3040-\u30ff\u3400-\u9fff]/.test(v)}
-  function parseCoords(q){
-    var m=q.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/)||q.match(/(-?\d{1,3}\.\d+)\s*[,\s]\s*(-?\d{1,3}\.\d+)/);
-    if(!m) return null; var lat=+m[1], lng=+m[2];
-    return (Math.abs(lat)<=90&&Math.abs(lng)<=180)?{lat:lat,lng:lng}:null;
-  }
-  function variants(q){
-    var out=[], seen={};
-    function add(x,approx){ x=x.replace(/\s+/g," ").trim(); if(x&&!seen[x]){seen[x]=1; out.push({q:x,approx:approx})} }
-    var base=q.replace(/〒?\s*\d{3}-?\d{4}/,"").replace(/[０-９]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-65248)}).replace(/[ー−]/g,"-");
-    var j=k2j(base);
-    add(base,false); add(j,false);
-    [base,j].forEach(function(x){
-      var t=x.replace(/[\d\-丁目番地号]+$/,"").replace(/^\d+(-\d+)*[\s,]+/,"");
-      add(t,true);
-      var tk=t.split(/[\s,]+/); for(var n=1;n<=2;n++) if(tk.length>n) add(tk.slice(0,-n).join(" "),true);
-    });
-    return out;
-  }
-  function short(n){return String(n).split(",").slice(0,3).join(",").trim()}
-  function gsi(v){
-    return fetch("https://msearch.gsi.go.jp/address-search/AddressSearch?q="+encodeURIComponent(v)).then(function(r){if(!r.ok) throw 0; return r.json()})
-      .then(function(a){return a.slice(0,30).map(function(f){return {name:f.properties.title,lat:f.geometry.coordinates[1],lng:f.geometry.coordinates[0]}})});
-  }
-  function nom(v){
-    return fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&accept-language=ko,ja,en&countrycodes=jp&q="+encodeURIComponent(v)).then(function(r){if(!r.ok) throw 0; return r.json()})
-      .then(function(a){return a.map(function(x){return {name:short(x.display_name),lat:+x.lat,lng:+x.lon}})});
-  }
-  function photon(v){
-    return fetch("https://photon.komoot.io/api/?limit=5&bbox=122,24,146,46&q="+encodeURIComponent(v)).then(function(r){if(!r.ok) throw 0; return r.json()})
-      .then(function(j){return (j.features||[]).map(function(f){var p=f.properties||{}; return {name:short([p.name,p.street,p.city||p.state].filter(Boolean).join(", ")),lat:f.geometry.coordinates[1],lng:f.geometry.coordinates[0]}})});
-  }
-  function distToCenter(r){
-    var c=map?map.getCenter():{lat:35.68,lng:139.76}, dx=(r.lng-c.lng)*Math.cos(c.lat*Math.PI/180), dy=r.lat-c.lat;
-    return dx*dx+dy*dy;
-  }
-  function geoVariant(v,approx){
-    var addr=/[都道府県市区町村郡丁目番地号]|\d/.test(v), calls;
-    var g=hasJa(v)?gsi(v):Promise.resolve([]);
-    calls = addr ? [g,nom(v),photon(v)] : [nom(v),photon(v),g];   // 주소처럼 보이면 일본 국토지리원 먼저, 장소명이면 OSM 먼저
-    return Promise.all(calls.map(function(p){return p.catch(function(){return []})})).then(function(arrs){
-      var pick=[]; for(var i=0;i<arrs.length;i++){ if(arrs[i].length){pick=arrs[i]; break} }   // 정확한 출처 우선
-      var out=[], seen={};
-      pick.forEach(function(r){
-        if(!isFinite(r.lat)||!isFinite(r.lng)) return;
-        var k=r.lat.toFixed(4)+","+r.lng.toFixed(4); if(seen[k]) return; seen[k]=1; out.push(r)});
-      if(approx||out.length>3) out.sort(function(x,y){return distToCenter(x)-distToCenter(y)});
-      return out.slice(0,6);
-    });
-  }
-  function showResults(list,approx){
-    var box=$("mRes"); box.innerHTML="";
-    if(!map||!list.length) return;
-    var f=list[0]; setPin(f.lat,f.lng); map.setView([f.lat,f.lng],17);
-    mmsg(approx?"정확한 번지는 못 찾아서 근처로 이동했어요. 핀을 끌어 맞춰 주세요.":"첫 번째 결과 위치로 이동했어요. 다른 곳이면 아래 결과를 누르거나 핀을 끌어 맞추세요.");
-    if(list.length>1) list.forEach(function(r){
-      var b=document.createElement("button"); b.type="button"; b.textContent=r.name;
-      b.onclick=function(){ setPin(r.lat,r.lng); map.setView([r.lat,r.lng],17); mmsg("이 위치로 이동했어요. 맞으면 '이 위치로'를 누르세요.") };
-      box.appendChild(b);
-    });
-  }
-  var searchId=0;
-  function doSearch(q){
-    q=q.trim(); if(!q||!map) return;
-    extLinks(); var my=++searchId; mmsg("검색 중…"); $("mRes").innerHTML="";
-    var c=parseCoords(q); if(c){ showResults([{name:"입력한 좌표",lat:c.lat,lng:c.lng}],false); return }
-    var vs=variants(q), i=0;
-    (function next(){
-      if(my!==searchId) return;
-      if(i>=vs.length){ mmsg("못 찾았어요. 위의 구글지도/네이버지도 버튼으로 찾은 뒤, 좌표나 링크를 복사해 검색칸에 붙여넣으세요."); return }
-      var v=vs[i++];
-      geoVariant(v.q,v.approx).then(function(list){
-        if(my!==searchId) return;
-        if(list.length) showResults(list,v.approx); else next();
-      });
-    })();
-  }
-  $("fLoc").onclick=function(){
-    mapDlg.showModal(); mmsg("지도 불러오는 중…"); $("mRes").innerHTML="";
-    $("mQ").value=$("fPlace").value.trim();
-    loadLeaflet().then(function(){
-      if(!map){
-        map=L.map("mapBox").setView([35.68,139.76],11);
-        L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);
-        map.on("click",function(e){setPin(e.latlng.lat,e.latlng.lng); mmsg("핀을 끌어 미세하게 옮길 수 있어요. 맞으면 '이 위치로'를 누르세요.")});
-      }
-      setTimeout(function(){
-        map.invalidateSize();
-        if(marker){marker.remove(); marker=null}
-        tmp=pin?{lat:pin.lat,lng:pin.lng}:null;
-        if(pin){ setPin(pin.lat,pin.lng); map.setView([pin.lat,pin.lng],16); mmsg("핀을 끌거나 지도를 눌러 옮길 수 있어요.") }
-        else { mmsg("주소나 장소를 검색하거나, 지도를 눌러 위치를 찍으세요."); if($("mQ").value) doSearch($("mQ").value) }
-      },60);
-    }).catch(function(){mmsg("지도를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.")});
-  };
-  $("mGo").onclick=function(){doSearch($("mQ").value)};
-  $("mQ").onkeydown=function(e){if(e.key==="Enter"){e.preventDefault(); doSearch($("mQ").value)}};
-  $("mCancel").onclick=function(){mapDlg.close()};
-  $("mClear").onclick=function(){pin=null; showLoc(); mapDlg.close()};
-  $("mOk").onclick=function(){ if(!tmp){mmsg("먼저 지도에서 위치를 찍어 주세요."); return} pin={lat:tmp.lat,lng:tmp.lng}; showLoc(); mapDlg.close() };
 
   /* ---------- 헤더 입력 / 탭 ---------- */
   var titleT=null;

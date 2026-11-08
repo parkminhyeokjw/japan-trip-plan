@@ -47,6 +47,7 @@ ol{list-style:none;margin:0;padding:0}
 li.slot{display:grid;grid-template-columns:54px 1fr;gap:0 10px;position:relative}
 li.slot::before{content:"";position:absolute;left:62px;top:0;bottom:0;width:2px;background:var(--line)}
 .time{font:700 17px/1.2 var(--f-num);font-variant-numeric:tabular-nums;text-align:right;padding-top:12px;color:var(--accent)}
+.time .end{display:block;font:500 12.5px/1.2 var(--f-num);color:var(--muted);margin-top:3px}
 .time.none{color:var(--muted);font-weight:500;font-size:14px}
 .card{position:relative;margin:0 0 8px 14px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:9px 14px;min-width:0;display:grid;grid-template-columns:1fr auto;gap:0 10px;line-height:1.4;cursor:pointer;text-align:left;font:inherit;color:inherit;width:calc(100% - 14px)}
 .card::before{content:"";position:absolute;left:-21px;top:15px;width:10px;height:10px;border-radius:50%;background:var(--bg);border:2px solid var(--accent)}
@@ -121,7 +122,10 @@ label.f /* packing */
   <form id="f" method="dialog">
     <div class="row">
       <label class="f">날짜<select id="fDay"></select></label>
-      <label class="f">시간<input id="fTime" type="time"></label>
+    </div>
+    <div class="row">
+      <label class="f">시작 시간<input id="fTime" type="time"></label>
+      <label class="f">끝나는 시간 (선택)<input id="fEnd" type="time"></label>
     </div>
     <label class="f">장소<input id="fPlace" placeholder="예: 센소지, 시부야 스카이" autocomplete="off"></label>
     <label class="f">메모<textarea id="fNote" placeholder="뭐 할지, 뭐 먹을지, 교통편 등"></textarea></label>
@@ -185,7 +189,7 @@ label.f /* packing */
     if(key.indexOf("i:")===0){
       var day=parseInt(v.day,10); if(!(day>=0&&day<DAYS)) return undefined;
       var ok=typeof v.lat==="number"&&typeof v.lng==="number"&&isFinite(v.lat)&&isFinite(v.lng)&&Math.abs(v.lat)<=90&&Math.abs(v.lng)<=180;
-      return {day:day,time:/^\d\d:\d\d$/.test(v.time)?v.time:"",place:str(v.place,200),note:str(v.note,2000),done:v.done===true,ord:typeof v.ord==="number"?v.ord:0,lat:ok?v.lat:null,lng:ok?v.lng:null};
+      return {day:day,time:/^\d\d:\d\d$/.test(v.time)?v.time:"",end:/^\d\d:\d\d$/.test(v.end)?v.end:"",place:str(v.place,200),note:str(v.note,2000),done:v.done===true,ord:typeof v.ord==="number"?v.ord:0,lat:ok?v.lat:null,lng:ok?v.lng:null};
     }
     if(key.indexOf("p:")===0) return {text:str(v.text,100),done:v.done===true,by:str(v.by,12),doneBy:str(v.doneBy,12)};
     return undefined;
@@ -264,6 +268,7 @@ label.f /* packing */
     items.forEach(function(it){
       var v=it.v, li=document.createElement("li"); li.className="slot";
       var t=document.createElement("div"); t.className="time"+(v.time?"":" none"); t.textContent=v.time||"미정";
+      if(v.time&&v.end){var te=document.createElement("span"); te.className="end"; te.textContent="~ "+v.end; t.appendChild(te)}
       var c=document.createElement("div"); c.className="card"+(v.done?" done":"")+(it.key===nowKey?" now":""); c.tabIndex=0; c.setAttribute("role","button");
       if(it.key===nowKey){var bd=document.createElement("div"); bd.className="badge"; bd.textContent="지금 이 시간"; c.appendChild(bd)}
       var p=document.createElement("div"); p.className="place"; p.textContent=v.place||"(장소 없음)";
@@ -305,7 +310,7 @@ label.f /* packing */
     editing=it||null; var sel=$("fDay"); sel.innerHTML="";
     for(var i=0;i<DAYS;i++){var o=document.createElement("option"); o.value=i; var d=dateOf(i); o.textContent=(i+1)+"일차 ("+(d.getMonth()+1)+"/"+d.getDate()+")"; sel.appendChild(o)}
     sel.value=it?it.v.day:cur;
-    $("fTime").value=it?it.v.time:""; $("fPlace").value=it?it.v.place:""; $("fNote").value=it?it.v.note:"";
+    $("fTime").value=it?it.v.time:""; $("fEnd").value=it&&it.v.end?it.v.end:""; $("fPlace").value=it?it.v.place:""; $("fNote").value=it?it.v.note:"";
     $("fDel").style.display=it?"":"none"; $("mvRow").style.display=it?"":"none";
     dlg.showModal(); if(!it) $("fTime").focus();
   }
@@ -320,17 +325,17 @@ label.f /* packing */
     var o=list[i+dir]; if(!o) return;
     var a=list[i], av=a.v, ov=o.v;
     var ord=av.ord===ov.ord?ov.ord+dir*0.5:ov.ord, ord2=av.ord===ov.ord?av.ord:av.ord;
-    setRec(a.key,Object.assign({},av,{time:ov.time,ord:ord}));
-    setRec(o.key,Object.assign({},ov,{time:av.time,ord:ord2}));
+    setRec(a.key,Object.assign({},av,{time:ov.time,end:ov.end||"",ord:ord}));
+    setRec(o.key,Object.assign({},ov,{time:av.time,end:av.end||"",ord:ord2}));
     dlg.close();
   }
   $("fUp").onclick=function(){move(-1)}; $("fDown").onclick=function(){move(1)};
   $("f").onsubmit=function(e){
     e.preventDefault();
-    var time=$("fTime").value, place=$("fPlace").value.trim(), note=$("fNote").value.trim(), day=parseInt($("fDay").value,10)||0;
+    var time=$("fTime").value, end=$("fEnd").value, place=$("fPlace").value.trim(), note=$("fNote").value.trim(), day=parseInt($("fDay").value,10)||0;
     if(!place&&!note&&!time){dlg.close();return}
-    if(editing){ setRec(editing.key,Object.assign({},editing.v,{day:day,time:time,place:place,note:note})); cur=day }
-    else { setRec("i:"+uid(),{day:day,time:time,place:place,note:note,done:false,ord:Date.now()}); cur=day }
+    if(editing){ setRec(editing.key,Object.assign({},editing.v,{day:day,time:time,end:time?end:"",place:place,note:note})); cur=day }
+    else { setRec("i:"+uid(),{day:day,time:time,end:time?end:"",place:place,note:note,done:false,ord:Date.now()}); cur=day }
     dlg.close();
   };
 

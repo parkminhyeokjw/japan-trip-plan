@@ -220,9 +220,6 @@ label.f /* packing */
     var p=START.split("-"), s=Date.UTC(+p[0],+p[1]-1,+p[2]), n=new Date(), t=Date.UTC(n.getFullYear(),n.getMonth(),n.getDate());
     var i=Math.round((t-s)/86400000); return (i>=0&&i<DAYS)?i:-1;
   }
-  function mapUrl(q){return "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(q)}
-  function locStr(v){return v.place}
-  function dirUrl(a,b){return "https://www.google.com/maps/dir/?api=1&travelmode=transit&origin="+encodeURIComponent(a)+"&destination="+encodeURIComponent(b)}
 
   var rafPending=false;
   function renderSoon(){ if(rafPending)return; rafPending=true; setTimeout(function(){rafPending=false;render()},50) }
@@ -263,7 +260,7 @@ label.f /* packing */
     }
     var n=new Date(), nowS=pad(n.getHours())+":"+pad(n.getMinutes()), nowKey=null;
     if(cur===td){ items.forEach(function(it){ if(it.v.time&&it.v.time<=nowS) nowKey=it.key }) }
-    var ol=document.createElement("ol"), prevRef="";
+    var ol=document.createElement("ol");
     items.forEach(function(it){
       var v=it.v, li=document.createElement("li"); li.className="slot";
       var t=document.createElement("div"); t.className="time"+(v.time?"":" none"); t.textContent=v.time||"미정";
@@ -274,13 +271,6 @@ label.f /* packing */
       ck.onclick=function(ev){ev.stopPropagation(); var nv=Object.assign({},v,{done:!v.done}); setRec(it.key,nv)};
       c.appendChild(p); c.appendChild(ck);
       if(v.note){var nt=document.createElement("div"); nt.className="note"; nt.textContent=v.note; c.appendChild(nt)}
-      if(v.place){
-        var ls=document.createElement("div"); ls.className="links";
-        var a=document.createElement("a"); a.href=mapUrl(locStr(v)); a.target="_blank"; a.rel="noopener"; a.textContent="지도"; a.onclick=function(ev){ev.stopPropagation()}; ls.appendChild(a);
-        if(prevRef){var a2=document.createElement("a"); a2.href=dirUrl(prevRef,locStr(v)); a2.target="_blank"; a2.rel="noopener"; a2.textContent="이전 장소에서 길찾기"; a2.onclick=function(ev){ev.stopPropagation()}; ls.appendChild(a2)}
-        c.appendChild(ls);
-      }
-      if(v.place) prevRef=locStr(v);
       c.onclick=function(){openEdit(it)};
       c.onkeydown=function(ev){if(ev.key==="Enter"&&ev.target===c)openEdit(it)};
       li.appendChild(t); li.appendChild(c); ol.appendChild(li);
